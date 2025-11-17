@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact Us - PINGAKSH</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f0f2f5; /* Light gray background */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh; /* Full viewport height */
+        margin: 0;
+        padding: 20px; /* Add some padding around the content */
+        box-sizing: border-box; /* Include padding in element's total width and height */
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <div
+      class="bg-white p-8 md:p-12 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-200"
+    >
+      <!-- Company Name -->
+      <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4 rounded-lg">
+        PINGAKSH
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="text-md md:text-lg text-gray-600 mb-8 rounded-lg">
+        Contact us for any more details or account deletion.
+      </p>
+
+      <div class="space-y-6">
+        <!-- Email Section -->
+        <div
+          class="flex flex-col items-center p-4 bg-blue-50 rounded-lg shadow-sm border border-blue-100"
+        >
+          <h2 class="text-xl font-semibold text-blue-700 mb-2">Email Us</h2>
+          <a
+            href="mailto:your.email@example.com"
+            class="text-blue-600 hover:text-blue-800 text-lg md:text-xl font-medium transition-colors duration-200"
+          >
+            HELLO@PINGAKSH.CO
+          </a>
+        </div>
+
+        <!-- Contact Number Section -->
+        <div
+          class="flex flex-col items-center p-4 bg-green-50 rounded-lg shadow-sm border border-green-100"
+        >
+          <h2 class="text-xl font-semibold text-green-700 mb-2">Call Us</h2>
+          <a
+            href="tel:+1234567890"
+            class="text-green-600 hover:text-green-800 text-lg md:text-xl font-medium transition-colors duration-200"
+          >
+            +91 7666862553
+          </a>
+        </div>
+      </div>
+
+      <p class="text-sm text-gray-500 mt-8">
+        We look forward to hearing from you!
+      </p>
+    </div>
+  </body>
+</html>

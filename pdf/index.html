@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #pdf-iframe {
+            height: 100vh;
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            pointer-events: auto;
+        }
+
+        /* Mobile specific styles */
+        @media (max-width: 640px) {
+            #pdf-iframe {
+                height: calc(100vh - 100px);
+            }
+
+            .container {
+                padding: 0;
+            }
+
+            .max-w-4xl {
+                max-width: 100%;
+            }
+
+            .rounded-lg {
+                border-radius: 0;
+            }
+        }
+
+        /* Protection overlay */
+        .protection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background-color: transparent;
+            pointer-events: none;
+        }
+
+        /* Disable text selection */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* Disable right click */
+        body {
+            /* -webkit-touch-callout: none; */
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 h-screen" oncontextmenu="return false">
+
+    <div class="container h-full xl:mx-auto xl:px-4">
+        <div class="max-w-4xl h-full mx-auto">
+            <div class="bg-white h-full rounded-lg shadow-md">
+                <!-- Error message container -->
+                <div id="errorContainer" class="hidden">
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800" id="errorMessage"></h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading indicator -->
+                <div id="loadingIndicator" class="text-center py-8">
+                    <div
+                        class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent">
+                    </div>
+                    <p class="mt-2 text-gray-600">Loading PDF...</p>
+                </div>
+
+                <!-- PDF iframe container -->
+                <div id="pdfContainer" class="hidden h-full">
+                    <iframe id="pdf-iframe" style="height: 100%;" frameborder="0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const errorContainer = document.getElementById('errorContainer');
+        const errorMessage = document.getElementById('errorMessage');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const pdfContainer = document.getElementById('pdfContainer');
+        const pdfIframe = document.getElementById('pdf-iframe');
+        const flashOverlay = document.getElementById('flashOverlay');
+
+        // Get PDF ID from URL parameters
+        function getPdfIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        // On page load
+        document.addEventListener('DOMContentLoaded', function () {
+            const pdfId = getPdfIdFromUrl();
+
+            if (!pdfId) {
+                showError('PDF ID is missing in URL parameters. Please add ?id=YOUR_PDF_ID to the URL');
+                hideLoading();
+                return;
+            }
+
+            // Apply security measures
+            applySecurityMeasures();
+
+            loadPdf(pdfId);
+        });
+
+        // Apply security measures to prevent download/screenshot
+        function applySecurityMeasures() {
+            // Disable right click
+            document.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                return false;
+            }, false);
+
+            // Disable keyboard shortcuts for save/screenshot
+            document.addEventListener('keydown', function (e) {
+                // Disable Ctrl+S, Ctrl+P, etc.
+                if (e.ctrlKey && (e.keyCode === 83 || e.keyCode === 80)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+
+                // Disable Print Screen key
+                if (e.keyCode === 44) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Prevent drag/drop of the iframe content
+            pdfIframe.addEventListener('dragstart', function (e) {
+                e.preventDefault();
+                return false;
+            });
+
+            // Extra protection for iOS devices
+            document.addEventListener('gesturestart', function (e) {
+                e.preventDefault();
+            });
+        }
+
+        // Load PDF from API
+        async function loadPdf(pdfId) {
+            // Reset state
+            hideError();
+            hidePdf();
+            showLoading();
+
+            try {
+                const response = await fetch(`https://apidev.pingaksh.co/api/pdf-link/${pdfId}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to load PDF');
+                }
+
+                if (!data.data || !data.data.url) {
+                    throw new Error('Invalid PDF URL in response');
+                }
+
+                // For mobile devices, we'll use Google Docs viewer as a fallback
+                // const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                // let pdfUrl = data.data.url;
+
+                // if (isMobile) {
+                // Use Google Docs viewer to force display in browser
+                let pdfUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(data.data.url)}`;
+                // }
+
+                // Load the PDF in iframe with additional security parameters
+                pdfIframe.src = pdfUrl + '#toolbar=0&navpanes=0&scrollbar=0';
+
+                // When iframe loads, hide loading and show PDF
+                pdfIframe.onload = function () {
+                    hideLoading();
+                    showPdf();
+
+                    // Additional security for the iframe
+                    try {
+                        // This will only work if the iframe is same-origin
+                        const iframeDoc = pdfIframe.contentDocument || pdfIframe.contentWindow.document;
+                        iframeDoc.addEventListener('contextmenu', function (e) {
+                            e.preventDefault();
+                        });
+
+                        // Add watermark to the PDF content
+                        addWatermark();
+                    } catch (e) {
+                        // Cross-origin iframe, can't modify directly
+                    }
+                };
+
+                // Handle iframe errors
+                pdfIframe.onerror = function () {
+                    showError('Failed to load PDF. Please try again later.');
+                    hideLoading();
+                };
+
+            } catch (error) {
+                showError(error.message || 'An error occurred while loading the PDF');
+                hideLoading();
+            }
+        }
+
+        // Add watermark to the PDF content
+        function addWatermark() {
+            try {
+                const iframeDoc = pdfIframe.contentDocument || pdfIframe.contentWindow.document;
+                const watermark = document.createElement('div');
+                watermark.style.position = 'fixed';
+                watermark.style.top = '0';
+                watermark.style.left = '0';
+                watermark.style.width = '100%';
+                watermark.style.height = '100%';
+                watermark.style.pointerEvents = 'none';
+                watermark.style.background = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'400\'><text x=\'50%\' y=\'50%\' font-size=\'30\' fill=\'rgba(200,200,200,0.5)\' text-anchor=\'middle\' dominant-baseline=\'middle\' transform=\'rotate(-45, 200, 200)\'>CONFIDENTIAL</text></svg>") repeat';
+                watermark.style.zIndex = '9999';
+
+                iframeDoc.body.appendChild(watermark);
+            } catch (e) {
+                console.log('Could not add watermark to cross-origin iframe');
+            }
+        }
+
+        // UI helper functions
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorContainer.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorContainer.classList.add('hidden');
+        }
+
+        function showLoading() {
+            loadingIndicator.classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            loadingIndicator.classList.add('hidden');
+        }
+
+        function showPdf() {
+            pdfContainer.classList.remove('hidden');
+        }
+
+        function hidePdf() {
+            pdfContainer.classList.add('hidden');
+        }
+    </script>
+</body>
+
+</html>
